@@ -1,3 +1,4 @@
+import { upsertStreamUser } from "../lib/stream.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 export async function signup(req, res) {
@@ -31,9 +32,24 @@ export async function signup(req, res) {
       password,
       profilePic: avatar,
     });
-    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET_KEY, {
-      expiresIn: "7d",
-    });
+
+    try {
+      upsertStreamUser({
+        id: newUser._id.toString(),
+        name: newUser.fullName,
+        image: newUser.profilePic || "",
+      });
+      console.log("new user created");
+    } catch (error) {
+      console.log(error);
+    }
+    const token = jwt.sign(
+      { userId: newUser._id },
+      process.env.JWT_SECRET_KEY,
+      {
+        expiresIn: "7d",
+      }
+    );
 
     res.cookie("jwt", token, {
       maxAge: 7 * 24 * 60 * 1000,
@@ -58,12 +74,13 @@ export async function login(req, res) {
     if (!user) {
       return res.status(401).json({ message: "invalid email or user" });
     }
+    console.log(typeof user.matchPassword);
 
-    const isPasswordCorrect = await User.matchPassword(password);
+    const isPasswordCorrect = await user.matchPassword(password);
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: "invalid email or user" });
     }
-    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET_KEY, {
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "7d",
     });
 
@@ -73,7 +90,7 @@ export async function login(req, res) {
       sameSite: "strict",
       secure: (process.env.NODE_ENV = "production"),
     });
-    res.status(201).json({ success: true, user: newUser });
+    res.status(201).json({ success: true, user: user });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "internal server error" });
