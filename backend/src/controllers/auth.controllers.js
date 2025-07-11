@@ -98,5 +98,49 @@ export async function login(req, res) {
 }
 
 export function logout(req, res) {
-  res.send("logout");
+  res.clearCookie("jwt");
+  return res
+    .status(200)
+    .json({ success: true, message: "logout successfuly " });
+}
+
+export async function onboard(req, res) {
+  try {
+    const userId = req.user._id;
+    const { fullName, bio, nativeLanguage, learningLanguage, location } =
+      req.body;
+
+    if (
+      !fullName ||
+      !bio ||
+      !nativeLanguage ||
+      !learningLanguage ||
+      !location
+    ) {
+      res.status(401).json({
+        message: "All fields is required",
+        messingField: [
+          !fullName && "fullName",
+          !bio && "bio",
+          !nativeLanguage && "nativeLanguage",
+          !learningLanguage && "learningLanguage",
+          !location && "location",
+        ].filter(Boolean),
+      });
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        ...req.body,
+        isOnboarded: true,
+      },
+      { new: true }
+    );
+    if (!updatedUser) {
+      return res.status(401).json({ message: "user not found" });
+    }
+    return res.status(200).json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.log(error);
+  }
 }
